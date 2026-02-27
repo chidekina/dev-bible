@@ -1,0 +1,5 @@
+# Design Patterns: Creational
+
+> Work in progress — full content coming soon.
+
+<!-- Use CONTRIBUTING.md template -->
