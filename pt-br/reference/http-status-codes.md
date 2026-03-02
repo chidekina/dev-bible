@@ -1,3 +1,3 @@
-# HTTP Status Codes
+# Códigos de Status HTTP
 
-> Work in progress — cheatsheet coming soon.
+> Em construção — guia rápido em breve.

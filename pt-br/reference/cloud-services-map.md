@@ -1,3 +1,3 @@
-# Cloud Services Map
+# Mapa de Serviços Cloud
 
-> Work in progress — cheatsheet coming soon.
+> Em construção — guia rápido em breve.

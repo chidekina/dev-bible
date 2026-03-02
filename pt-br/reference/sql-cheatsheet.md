@@ -1,3 +1,3 @@
-# SQL Cheatsheet
+# Guia Rápido de SQL
 
-> Work in progress — cheatsheet coming soon.
+> Em construção — guia rápido em breve.

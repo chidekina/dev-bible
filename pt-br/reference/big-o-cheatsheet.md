@@ -1,3 +1,3 @@
-# Big O Cheatsheet
+# Guia Rápido de Big O
 
-> Work in progress — cheatsheet coming soon.
+> Em construção — guia rápido em breve.

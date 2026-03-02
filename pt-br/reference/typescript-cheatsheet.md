@@ -1,3 +1,3 @@
-# TypeScript Cheatsheet
+# Guia Rápido de TypeScript
 
-> Work in progress — cheatsheet coming soon.
+> Em construção — guia rápido em breve.

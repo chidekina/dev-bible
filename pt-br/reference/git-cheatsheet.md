@@ -1,3 +1,3 @@
-# Git Cheatsheet
+# Guia Rápido de Git
 
-> Work in progress — cheatsheet coming soon.
+> Em construção — guia rápido em breve.

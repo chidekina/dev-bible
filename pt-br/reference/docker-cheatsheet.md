@@ -1,3 +1,3 @@
-# Docker Cheatsheet
+# Guia Rápido de Docker
 
-> Work in progress — cheatsheet coming soon.
+> Em construção — guia rápido em breve.

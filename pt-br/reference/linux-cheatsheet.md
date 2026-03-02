@@ -1,3 +1,3 @@
-# Linux Cheatsheet
+# Guia Rápido de Linux
 
-> Work in progress — cheatsheet coming soon.
+> Em construção — guia rápido em breve.
