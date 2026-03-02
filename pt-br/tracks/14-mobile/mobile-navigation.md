@@ -491,6 +491,282 @@ function RootNavigator() {
 
 ---
 
+## Navegação Tipada com TypeScript
+
+Type every screen and its params to catch navigation errors at compile time.
+
+```typescript
+// types/navigation.ts — define every screen and its param contract
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { RouteProp } from '@react-navigation/native';
+
+export type RootStackParamList = {
+  Home: undefined;                           // sem params
+  Profile: { userId: string };               // param obrigatório
+  Post: { postId: string; title?: string };  // param opcional
+  EditPost: { postId: string; draft?: boolean };
+};
+
+export type TabParamList = {
+  Feed: undefined;
+  Search: { query?: string };
+  Notifications: undefined;
+  Settings: undefined;
+};
+
+// Prop de navegação tipada por tela
+export type HomeScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Home'
+>;
+
+// Prop de rota tipada por tela
+export type ProfileScreenRouteProp = RouteProp<RootStackParamList, 'Profile'>;
+```
+
+```typescript
+// ProfileScreen.tsx — params tipados, sem adivinhação em runtime
+import { useRoute } from '@react-navigation/native';
+import type { ProfileScreenRouteProp } from '../types/navigation';
+
+export function ProfileScreen() {
+  const route = useRoute<ProfileScreenRouteProp>();
+  // route.params.userId é string — garantido, sem necessidade de verificar undefined
+  const { userId } = route.params;
+
+  return <UserProfile userId={userId} />;
+}
+```
+
+```typescript
+// Declaração de tipo global — faz useNavigation() ser inferido em todo lugar
+// Adicione isso uma vez, ex.: em types/navigation.ts
+
+declare global {
+  namespace ReactNavigation {
+    interface RootParamList extends RootStackParamList {}
+  }
+}
+
+// Agora useNavigation() é totalmente tipado sem o genérico em todo lugar:
+import { useNavigation } from '@react-navigation/native';
+
+function SomeButton() {
+  const navigation = useNavigation(); // tipo inferido
+  // navigation.navigate('Post', { postId: '123' });  ✓
+  // navigation.navigate('Post', {});                 ✗ erro TS: postId obrigatório
+  // navigation.navigate('Nonexistent');              ✗ erro TS: não está na lista de params
+}
+```
+
+---
+
+## Universal Links (iOS) e App Links (Android)
+
+Universal Links e App Links abrem seu app quando o usuário toca em uma URL na web — sem scheme personalizado, sem prompt "Abrir no app?".
+
+**Passo 1 — Hospede o arquivo de verificação:**
+
+```json
+// https://yourdomain.com/.well-known/apple-app-site-association (iOS)
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.com.yourcompany.yourapp",
+        "paths": ["/post/*", "/profile/*", "/invite/*", "/NOT /admin/*"]
+      }
+    ]
+  }
+}
+```
+
+```json
+// https://yourdomain.com/.well-known/assetlinks.json (Android)
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.yourcompany.yourapp",
+    "sha256_cert_fingerprints": ["AB:CD:EF:..."]
+  }
+}]
+```
+
+O arquivo deve ser servido com `Content-Type: application/json` e sem redirecionamentos no caminho de verificação.
+
+**Passo 2 — Configure no app.json:**
+
+```json
+{
+  "expo": {
+    "ios": {
+      "associatedDomains": ["applinks:yourdomain.com"]
+    },
+    "android": {
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "yourdomain.com",
+              "pathPrefix": "/post"
+            },
+            {
+              "scheme": "https",
+              "host": "yourdomain.com",
+              "pathPrefix": "/profile"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    }
+  }
+}
+```
+
+**Passo 3 — Conecte à configuração de linking do React Navigation:**
+
+```typescript
+// navigation/linking.ts
+import type { LinkingOptions } from '@react-navigation/native';
+import type { RootStackParamList } from '../types/navigation';
+
+export const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: [
+    'https://yourdomain.com',
+    'myapp://', // scheme personalizado como fallback para dev
+  ],
+  config: {
+    screens: {
+      Home: '',
+      Post: 'post/:postId',
+      Profile: 'profile/:userId',
+    },
+  },
+};
+
+// No NavigationContainer:
+// <NavigationContainer linking={linking} fallback={<LoadingScreen />}>
+```
+
+**Teste no simulador iOS:**
+
+```bash
+xcrun simctl openurl booted "https://yourdomain.com/post/123"
+```
+
+**Teste no emulador Android:**
+
+```bash
+adb shell am start -W -a android.intent.action.VIEW -d "https://yourdomain.com/post/123"
+```
+
+---
+
+## Bottom Sheet com Navegação
+
+`@gorhom/bottom-sheet` é o padrão para drawers inferiores dispensáveis no React Native. Integra-se com Gesture Handler e Reanimated para animações suaves a 60fps.
+
+```bash
+npx expo install @gorhom/bottom-sheet react-native-gesture-handler react-native-reanimated
+```
+
+Envolva a raiz do app com `GestureHandlerRootView`:
+
+```tsx
+// App.tsx / _layout.tsx
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <RootNavigator />
+      </NavigationContainer>
+    </GestureHandlerRootView>
+  );
+}
+```
+
+```tsx
+// components/FilterSheet.tsx
+import BottomSheet, {
+  BottomSheetView,
+  BottomSheetBackdrop,
+} from '@gorhom/bottom-sheet';
+import { useRef, useCallback, useMemo } from 'react';
+import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
+
+interface Props {
+  onClose: () => void;
+}
+
+export function FilterSheet({ onClose }: Props) {
+  const ref = useRef<BottomSheet>(null);
+  const snapPoints = useMemo(() => ['40%', '75%'], []);
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        pressBehavior="close"
+      />
+    ),
+    [],
+  );
+
+  const handleChange = useCallback(
+    (index: number) => {
+      if (index === -1) onClose();
+    },
+    [onClose],
+  );
+
+  return (
+    <BottomSheet
+      ref={ref}
+      index={0}           // 0 = primeiro snap point ao montar
+      snapPoints={snapPoints}
+      enablePanDownToClose
+      backdropComponent={renderBackdrop}
+      onChange={handleChange}
+    >
+      <BottomSheetView style={styles.content}>
+        <FilterOptions />
+      </BottomSheetView>
+    </BottomSheet>
+  );
+}
+```
+
+**Padrão: sheet controlada pelo state do pai:**
+
+```tsx
+function SearchScreen() {
+  const [showFilters, setShowFilters] = useState(false);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <SearchBar onFilterPress={() => setShowFilters(true)} />
+      <ResultsList />
+      {showFilters && (
+        <FilterSheet onClose={() => setShowFilters(false)} />
+      )}
+    </View>
+  );
+}
+```
+
+---
+
 ## Leitura Adicional
 
 - [Documentação do React Navigation](https://reactnavigation.org/docs/getting-started)
