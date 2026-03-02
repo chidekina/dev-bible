@@ -2,7 +2,7 @@
 
 > A comprehensive, bilingual developer reference — from CS fundamentals to cloud architecture.
 
-![Topics](https://img.shields.io/badge/topics-121-blue) ![Languages](https://img.shields.io/badge/lang-EN%20%7C%20PT--BR-green) ![Files](https://img.shields.io/badge/files-300-orange) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![Topics](https://img.shields.io/badge/topics-124-blue) ![Languages](https://img.shields.io/badge/lang-EN%20%7C%20PT--BR-green) ![Files](https://img.shields.io/badge/files-298-orange) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 Available in: [English](en/) | [Português BR](pt-br/)
 
@@ -26,9 +26,9 @@ Available in: [English](en/) | [Português BR](pt-br/)
 | 11 | [Accessibility](en/tracks/11-accessibility/) | WCAG, ARIA, Keyboard Nav, a11y Testing | 5 | 5 |
 | 12 | [Kubernetes](en/tracks/12-kubernetes/) | Pods, Deployments, Helm, RBAC, HPA | 7 | 7 |
 | 13 | [AI/LLM Integration](en/tracks/13-ai-llm/) | Prompting, RAG, Tool Use, Cost Opt. | 7 | 7 |
-| 14 | [Mobile](en/tracks/14-mobile/) | PWA, React Native, Navigation, EAS Deploy | 6 | — |
+| 14 | [Mobile](en/tracks/14-mobile/) | PWA, React Native, Navigation, EAS Deploy | 9 | 9 |
 
-**Total: 121 topic files per language (EN) · 242 topic files combined**
+**Total: 124 topic files per language (EN) · 248 topic files combined**
 
 ## Reference Cheatsheets
 
@@ -90,13 +90,13 @@ Every topic follows this 10-section structure:
 
 | Metric | Count |
 |--------|-------|
-| Track chapters (EN) | 121 |
-| Track chapters (PT-BR) | 115 |
+| Track chapters (EN) | 124 |
+| Track chapters (PT-BR) | 124 |
 | Reference cheatsheets (EN) | 16 |
 | Reference cheatsheets (PT-BR) | 12 |
 | Exercise files (EN) | 13 |
 | Exercise files (PT-BR) | 13 |
-| **Total files** | **300** |
+| **Total files** | **298** |
 
 ---
 

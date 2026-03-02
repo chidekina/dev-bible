@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.3.0] — 2026-03-02
+
+### Added
+- Track 14 — Mobile: 3 new chapters (mobile-testing, mobile-security, native-device-apis) in EN + PT-BR
+- Deepened 6 existing mobile chapters (pwa-fundamentals, react-native-basics, react-native-advanced, mobile-navigation, mobile-state-management, mobile-deployment) — +150–280 lines each covering: background sync, share target API, Hermes engine, Metro config, Reanimated 3, New Architecture, Skia, typed navigation, universal links, bottom sheet, WatermelonDB, background fetch, conflict resolution, internal distribution, staged rollouts, OTA rollback, EAS secrets
+
+### Stats
+- Track 14 chapters: 6 → 9
+- Total chapters: 115 → 124
+- Total files: 280 → 298
+
+---
+
 ## [2.2.0] - 2026-03-02
 
 ### Added
