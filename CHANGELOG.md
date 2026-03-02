@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.2.0] - 2026-03-02
+
+### Added
+
+#### Track 14: Mobile (7 topics — EN)
+- PWA Fundamentals (service workers, Workbox, offline-first, push notifications)
+- React Native Basics (Expo, core components, StyleSheet, navigation)
+- React Native Advanced (Reanimated, Gesture Handler, native modules, Hermes)
+- Mobile Navigation (stack/tab/drawer, auth flow, deep links, universal links)
+- Mobile State Management (Zustand + MMKV, React Query offline, sync patterns)
+- Mobile Deployment (EAS Build/Submit/Update, app signing, CI/CD)
+
+#### Reference Cheatsheets — 4 new (EN)
+- React cheatsheet (hooks, context, compound components, TypeScript, performance)
+- PostgreSQL cheatsheet (JSONB, full-text search, partitioning, replication, pg_stat)
+- Regex cheatsheet (character classes, lookaheads, named groups, common patterns)
+- Bash scripting cheatsheet (functions, traps, retry loops, parallel execution)
+
+### Changed
+- README updated: 15 tracks, 121 EN chapters, 16 cheatsheets, 300 total files
+
+---
+
 ## [2.1.0] - 2026-03-02
 
 ### Added

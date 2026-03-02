@@ -2,7 +2,7 @@
 
 > A comprehensive, bilingual developer reference — from CS fundamentals to cloud architecture.
 
-![Topics](https://img.shields.io/badge/topics-115-blue) ![Languages](https://img.shields.io/badge/lang-EN%20%7C%20PT--BR-green) ![Files](https://img.shields.io/badge/files-280-orange) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![Topics](https://img.shields.io/badge/topics-121-blue) ![Languages](https://img.shields.io/badge/lang-EN%20%7C%20PT--BR-green) ![Files](https://img.shields.io/badge/files-300-orange) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 Available in: [English](en/) | [Português BR](pt-br/)
 
@@ -26,14 +26,15 @@ Available in: [English](en/) | [Português BR](pt-br/)
 | 11 | [Accessibility](en/tracks/11-accessibility/) | WCAG, ARIA, Keyboard Nav, a11y Testing | 5 | 5 |
 | 12 | [Kubernetes](en/tracks/12-kubernetes/) | Pods, Deployments, Helm, RBAC, HPA | 7 | 7 |
 | 13 | [AI/LLM Integration](en/tracks/13-ai-llm/) | Prompting, RAG, Tool Use, Cost Opt. | 7 | 7 |
+| 14 | [Mobile](en/tracks/14-mobile/) | PWA, React Native, Navigation, EAS Deploy | 6 | — |
 
-**Total: 115 topic files per language · 230 topic files combined**
+**Total: 121 topic files per language (EN) · 242 topic files combined**
 
 ## Reference Cheatsheets
 
-Quick cheatsheets (EN + PT-BR): 12 files each, 24 total.
+Quick cheatsheets (EN + PT-BR): 16 files EN, 12 PT-BR.
 
-[TypeScript](en/reference/typescript-cheatsheet.md) · [SQL](en/reference/sql-cheatsheet.md) · [Docker](en/reference/docker-cheatsheet.md) · [Git](en/reference/git-cheatsheet.md) · [Linux](en/reference/linux-cheatsheet.md) · [Big O](en/reference/big-o-cheatsheet.md) · [HTTP Status Codes](en/reference/http-status-codes.md) · [Cloud Services Map](en/reference/cloud-services-map.md) · [Kubernetes](en/reference/kubernetes-cheatsheet.md) · [Terraform](en/reference/terraform-cheatsheet.md) · [Helm](en/reference/helm-cheatsheet.md) · [AI/LLM](en/reference/ai-llm-cheatsheet.md)
+[TypeScript](en/reference/typescript-cheatsheet.md) · [SQL](en/reference/sql-cheatsheet.md) · [Docker](en/reference/docker-cheatsheet.md) · [Git](en/reference/git-cheatsheet.md) · [Linux](en/reference/linux-cheatsheet.md) · [Big O](en/reference/big-o-cheatsheet.md) · [HTTP Status Codes](en/reference/http-status-codes.md) · [Cloud Services Map](en/reference/cloud-services-map.md) · [Kubernetes](en/reference/kubernetes-cheatsheet.md) · [Terraform](en/reference/terraform-cheatsheet.md) · [Helm](en/reference/helm-cheatsheet.md) · [AI/LLM](en/reference/ai-llm-cheatsheet.md) · [React](en/reference/react-cheatsheet.md) · [PostgreSQL](en/reference/postgresql-cheatsheet.md) · [Regex](en/reference/regex-cheatsheet.md) · [Bash Scripting](en/reference/bash-scripting-cheatsheet.md)
 
 ## Exercises & Labs
 
@@ -89,13 +90,13 @@ Every topic follows this 10-section structure:
 
 | Metric | Count |
 |--------|-------|
-| Track chapters (EN) | 115 |
+| Track chapters (EN) | 121 |
 | Track chapters (PT-BR) | 115 |
-| Reference cheatsheets (EN) | 12 |
+| Reference cheatsheets (EN) | 16 |
 | Reference cheatsheets (PT-BR) | 12 |
 | Exercise files (EN) | 13 |
 | Exercise files (PT-BR) | 13 |
-| **Total files** | **280** |
+| **Total files** | **300** |
 
 ---
 
