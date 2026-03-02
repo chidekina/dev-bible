@@ -2,7 +2,7 @@
 
 > A comprehensive, bilingual developer reference — from CS fundamentals to cloud architecture.
 
-![Topics](https://img.shields.io/badge/topics-76-blue) ![Languages](https://img.shields.io/badge/lang-EN%20%7C%20PT--BR-green) ![Files](https://img.shields.io/badge/files-152-orange) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![Topics](https://img.shields.io/badge/topics-110-blue) ![Languages](https://img.shields.io/badge/lang-EN%20%7C%20PT--BR-green) ![Files](https://img.shields.io/badge/files-220-orange) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 Available in: [English](en/) | [Português BR](pt-br/)
 
@@ -19,8 +19,15 @@ Available in: [English](en/) | [Português BR](pt-br/)
 | 04 | [Architecture](en/tracks/04-architecture/) | SOLID, Clean Arch, DDD, Patterns | 9 | 9 |
 | 05 | [DevOps](en/tracks/05-devops/) | Docker, CI/CD, Nginx, VPS, Monitoring | 7 | 7 |
 | 06 | [Cloud](en/tracks/06-cloud/) | AWS, Azure, GCP, Security, Cost | 11 | 11 |
+| 07 | [Security](en/tracks/07-security/) | OWASP, Auth, Secrets, TLS, CORS, XSS | 8 | 8 |
+| 08 | [System Design](en/tracks/08-system-design/) | CAP, Load Balancing, Caching, Queues | 9 | 9 |
+| 09 | [Testing](en/tracks/09-testing/) | Unit, Integration, E2E, TDD, Mocking | 7 | 7 |
+| 10 | [Performance](en/tracks/10-performance/) | Web Vitals, Profiling, Query Optimization | 6 | 6 |
+| 11 | [Accessibility](en/tracks/11-accessibility/) | WCAG, ARIA, Keyboard Nav, a11y Testing | 5 | 5 |
+| 12 | [Kubernetes](en/tracks/12-kubernetes/) | Pods, Deployments, Helm, RBAC, HPA | 7 | 7 |
+| 13 | [AI/LLM Integration](en/tracks/13-ai-llm/) | Prompting, RAG, Tool Use, Cost Opt. | 7 | 7 |
 
-**Total: 66 topic files per language · 132 topic files combined**
+**Total: 110 topic files per language · 220 topic files combined**
 
 ## Reference Cheatsheets
 
@@ -48,7 +55,16 @@ Quick cheatsheets (EN + PT-BR): 8 files each, 16 total.
 `04-architecture` → `00-cs-fundamentals` → `05-devops` → `06-cloud`
 
 **DevOps / SRE:**
-`01-foundations (linux)` → `05-devops` → `06-cloud`
+`01-foundations (linux)` → `05-devops` → `06-cloud` → `12-kubernetes`
+
+**Security Focus:**
+`03-backend` → `07-security` → `04-architecture`
+
+**AI/LLM Engineer:**
+`03-backend` → `04-architecture` → `13-ai-llm`
+
+**Full-Stack Senior:**
+`00-cs-fundamentals` → `03-backend` → `04-architecture` → `07-security` → `08-system-design` → `05-devops`
 
 ---
 
@@ -73,11 +89,11 @@ Every topic follows this 10-section structure:
 
 | Metric | Count |
 |--------|-------|
-| Topic files (EN) | 66 |
-| Topic files (PT-BR) | 66 |
+| Topic files (EN) | 110 |
+| Topic files (PT-BR) | 110 |
 | Reference cheatsheets | 16 |
 | Exercise files | 12 |
-| **Total files** | **160** |
+| **Total files** | **248** |
 
 ---
 

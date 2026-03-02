@@ -6,6 +6,79 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.0.0] - 2026-03-02
+
+### Added
+
+#### Track 07: Security (8 topics — EN + PT-BR)
+- OWASP Top 10
+- Authentication & Authorization
+- Secrets Management
+- HTTPS & TLS
+- CORS & CSRF
+- SQL Injection & XSS
+- Security Headers
+- Dependency Auditing
+
+#### Track 08: System Design (9 topics — EN + PT-BR)
+- CAP Theorem
+- Load Balancing
+- Caching Strategies
+- Database Scaling
+- Message Queues
+- API Gateways
+- CDN
+- Distributed Systems
+- Design Interviews
+
+#### Track 09: Testing (7 topics — EN + PT-BR)
+- Testing Fundamentals
+- Unit Testing
+- Integration Testing
+- E2E Testing
+- Test-Driven Development
+- Mocking & Stubs
+- Performance Testing
+
+#### Track 10: Performance (6 topics — EN + PT-BR)
+- Web Performance Metrics
+- JavaScript Optimization
+- Database Query Optimization
+- HTTP Caching
+- Profiling Tools
+- Image Optimization
+
+#### Track 11: Accessibility (5 topics — EN + PT-BR)
+- WCAG Standards
+- Semantic HTML
+- ARIA Roles
+- Keyboard Navigation
+- Testing Accessibility
+
+#### Track 12: Kubernetes (7 topics — EN + PT-BR)
+- Kubernetes Concepts
+- kubectl Basics
+- Pods & Deployments
+- Services & Ingress
+- ConfigMaps & Secrets
+- Helm Basics
+- K8s in Production
+
+#### Track 13: AI/LLM Integration (7 topics — EN + PT-BR)
+- LLM Fundamentals
+- Prompt Engineering
+- RAG & Embeddings
+- Tool Use & Function Calling
+- AI Integration Patterns
+- Fine-Tuning Concepts
+- AI Cost Optimization
+
+### Changed
+- README updated with all 14 tracks, new learning paths (Security, AI/LLM, Full-Stack Senior)
+- Badge counts updated: 110 topics per language, 248 total files
+
+---
+
 ## [1.0.0] - 2026-02-28
 
 ### Added
