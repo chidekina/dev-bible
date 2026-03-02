@@ -559,6 +559,249 @@ Fluxo:
 
 ---
 
+## WatermelonDB para Dados Relacionais Complexos
+
+WatermelonDB é um banco de dados reativo de alta performance para React Native, construído sobre SQLite. É a escolha certa quando seu app tem dados relacionais complexos (mensagens, posts com comentários, transações com itens) e milhares de registros que tornariam MMKV + JSON impraticável.
+
+```bash
+npx expo install @nozbe/watermelondb
+npx expo install @nozbe/with-observables
+```
+
+```typescript
+// database/schema.ts
+import { appSchema, tableSchema } from '@nozbe/watermelondb';
+
+export const schema = appSchema({
+  version: 1,
+  tables: [
+    tableSchema({
+      name: 'posts',
+      columns: [
+        { name: 'title', type: 'string' },
+        { name: 'body', type: 'string' },
+        { name: 'author_id', type: 'string', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'is_published', type: 'boolean' },
+      ],
+    }),
+    tableSchema({
+      name: 'comments',
+      columns: [
+        { name: 'post_id', type: 'string', isIndexed: true },
+        { name: 'body', type: 'string' },
+        { name: 'author_id', type: 'string' },
+        { name: 'created_at', type: 'number' },
+      ],
+    }),
+  ],
+});
+```
+
+```typescript
+// models/Post.ts
+import { Model, Query, Relation } from '@nozbe/watermelondb';
+import { field, date, relation, children } from '@nozbe/watermelondb/decorators';
+import { Comment } from './Comment';
+import { User } from './User';
+
+export class Post extends Model {
+  static table = 'posts';
+  static associations = {
+    comments: { type: 'has_many' as const, foreignKey: 'post_id' },
+    author: { type: 'belongs_to' as const, key: 'author_id' },
+  };
+
+  @field('title') title!: string;
+  @field('body') body!: string;
+  @field('is_published') isPublished!: boolean;
+  @date('created_at') createdAt!: Date;
+  @children('comments') comments!: Query<Comment>;
+  @relation('users', 'author_id') author!: Relation<User>;
+}
+```
+
+```tsx
+// Componente reativo — re-renderiza apenas quando o post ou seus comentários mudam
+import { withObservables } from '@nozbe/with-observables';
+import { Post } from '../models/Post';
+import { Comment } from '../models/Comment';
+
+interface Props {
+  post: Post;
+  comments: Comment[];
+}
+
+const PostCard = ({ post, comments }: Props) => (
+  <View>
+    <Text style={styles.title}>{post.title}</Text>
+    <Text>{comments.length} comentários</Text>
+  </View>
+);
+
+// HOC conecta os streams observáveis do model às props
+const enhance = withObservables(['post'], ({ post }: { post: Post }) => ({
+  post,
+  comments: post.comments,
+}));
+
+export const EnhancedPostCard = enhance(PostCard);
+```
+
+**Quando usar WatermelonDB vs MMKV:**
+
+| Cenário | Ferramenta |
+|---|---|
+| Tokens de autenticação, preferências, flags simples | MMKV |
+| Listas paginadas, cache de respostas da API | React Query + MMKV persister |
+| Dados relacionais, joins, 10k+ registros | WatermelonDB |
+| Dados colaborativos em tempo real | WatermelonDB + CRDT |
+
+---
+
+## Background Fetch com expo-background-fetch
+
+Execute lógica periodicamente quando o app está em segundo plano — sincronize dados, atualize conteúdo, verifique atualizações.
+
+```bash
+npx expo install expo-background-fetch expo-task-manager
+```
+
+```typescript
+// tasks/backgroundSync.ts
+import * as BackgroundFetch from 'expo-background-fetch';
+import * as TaskManager from 'expo-task-manager';
+import { syncWithServer } from '../lib/sync';
+
+export const BACKGROUND_SYNC_TASK = 'background-data-sync';
+
+// Defina no nível do módulo (fora de qualquer componente ou hook)
+TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
+  try {
+    const result = await syncWithServer();
+    return result.hasNewData
+      ? BackgroundFetch.BackgroundFetchResult.NewData
+      : BackgroundFetch.BackgroundFetchResult.NoData;
+  } catch (error) {
+    console.error('Background sync failed:', error);
+    return BackgroundFetch.BackgroundFetchResult.Failed;
+  }
+});
+
+export async function registerBackgroundSync(): Promise<void> {
+  const status = await BackgroundFetch.getStatusAsync();
+
+  if (
+    status === BackgroundFetch.BackgroundFetchStatus.Restricted ||
+    status === BackgroundFetch.BackgroundFetchStatus.Denied
+  ) {
+    return; // Usuário/SO restringiu tarefas em segundo plano
+  }
+
+  const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_SYNC_TASK);
+  if (isRegistered) return;
+
+  await BackgroundFetch.registerTaskAsync(BACKGROUND_SYNC_TASK, {
+    minimumInterval: 15 * 60,  // 15 minutos (SO pode atrasar significativamente)
+    stopOnTerminate: false,     // continua após o usuário fechar o app
+    startOnBoot: true,          // registra quando o dispositivo reinicia
+  });
+}
+
+export async function unregisterBackgroundSync(): Promise<void> {
+  await BackgroundFetch.unregisterTaskAsync(BACKGROUND_SYNC_TASK);
+}
+```
+
+```tsx
+// Chame registerBackgroundSync() uma vez na inicialização do app
+useEffect(() => {
+  registerBackgroundSync();
+}, []);
+```
+
+**Restrições:**
+
+- **iOS:** O SO controla o timing real. Seu `minimumInterval` é apenas uma sugestão — tarefas em segundo plano normalmente executam a cada 30–60 min dependendo da bateria e padrões de uso. Não é adequado para dados em tempo real.
+- **Android:** Sujeito ao modo Doze. As tarefas podem ser agrupadas. Oriente o usuário a desativar a otimização de bateria para o seu app se sync frequente for crítico.
+- **Alternativa para tempo real:** Use mensagens de dados FCM (push silencioso) para acionar sync em primeiro plano sob demanda.
+
+---
+
+## Estratégias de Resolução de Conflitos
+
+Escritas offline que sincronizam com o servidor podem conflitar com mudanças concorrentes no servidor. Três estratégias cobrem a maioria dos casos.
+
+**Estratégia 1: Last-Write-Wins (LWW)**
+
+A abordagem mais simples — qualquer escrita com o timestamp mais recente vence.
+
+```typescript
+type SyncRecord = {
+  id: string;
+  data: Record<string, unknown>;
+  updatedAt: number; // Unix ms
+};
+
+function mergeWithLWW(server: SyncRecord, client: SyncRecord): SyncRecord {
+  return client.updatedAt > server.updatedAt ? client : server;
+}
+```
+
+Boa para: preferências do usuário, configurações de perfil, feature toggles. Ruim para: dados colaborativos, contadores (incrementos concorrentes são perdidos).
+
+**Estratégia 2: Merge por Campo**
+
+Rastreie um snapshot base. Campos alterados apenas pelo cliente vencem; campos alterados por ambos são sinalizados para resolução pelo usuário.
+
+```typescript
+function mergeFields(
+  base: Record<string, unknown>,
+  server: Record<string, unknown>,
+  client: Record<string, unknown>,
+): { merged: Record<string, unknown>; conflicts: string[] } {
+  const merged = { ...server };
+  const conflicts: string[] = [];
+
+  for (const key of Object.keys(client)) {
+    const clientChanged = client[key] !== base[key];
+    const serverChanged = server[key] !== base[key];
+
+    if (clientChanged && !serverChanged) {
+      merged[key] = client[key]; // cliente vence sem contestação
+    } else if (clientChanged && serverChanged) {
+      conflicts.push(key); // ambos mudaram — sinaliza para resolução na UI
+    }
+    // serverChanged && !clientChanged: servidor vence (já está em merged)
+  }
+
+  return { merged, conflicts };
+}
+```
+
+**Estratégia 3: CRDTs (Conflict-free Replicated Data Types)**
+
+Para edição colaborativa de texto, contadores compartilhados ou conjuntos — use uma biblioteca CRDT (`automerge`, `yjs`). CRDTs garantem consistência eventual sem um resolvedor central de conflitos.
+
+```typescript
+import * as Y from 'yjs';
+
+// Documento compartilhado — mudanças de qualquer peer se mesclam automaticamente
+const ydoc = new Y.Doc();
+const ytext = ydoc.getText('content');
+
+// Peer A digita "hello"
+ytext.insert(0, 'hello');
+
+// Peer B digita "world" na mesma posição concorrentemente
+// Após sync: ambas as inserções são preservadas em ordem determinística
+// Sem conflitos, sem perda de dados
+```
+
+Use CRDTs apenas para funcionalidades que realmente precisam deles (colaboração em tempo real, listas compartilhadas offline-first). Eles adicionam complexidade significativa — LWW ou merge por campo cobre 90% dos cenários de sync mobile.
+
+---
+
 ## Leitura Adicional
 
 - [Documentação do Zustand](https://zustand.docs.pmnd.rs/)
