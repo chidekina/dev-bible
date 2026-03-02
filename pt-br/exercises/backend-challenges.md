@@ -1,3 +1,3 @@
-# Backend Challenges
+# Desafios de Backend
 
-> Work in progress — exercises coming soon.
+> Em construção — exercícios em breve.

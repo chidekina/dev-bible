@@ -1,3 +1,3 @@
-# DevOps Labs
+# Laboratórios de DevOps
 
-> Work in progress — exercises coming soon.
+> Em construção — exercícios em breve.

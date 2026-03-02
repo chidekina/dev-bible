@@ -1,3 +1,3 @@
-# Frontend Challenges
+# Desafios de Frontend
 
-> Work in progress — exercises coming soon.
+> Em construção — exercícios em breve.

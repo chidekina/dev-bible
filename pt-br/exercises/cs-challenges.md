@@ -1,3 +1,3 @@
-# CS Challenges
+# Desafios de Ciência da Computação
 
-> Work in progress — exercises coming soon.
+> Em construção — exercícios em breve.

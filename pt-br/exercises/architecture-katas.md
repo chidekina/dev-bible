@@ -1,3 +1,3 @@
-# Architecture Katas
+# Katas de Arquitetura
 
-> Work in progress — exercises coming soon.
+> Em construção — exercícios em breve.

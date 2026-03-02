@@ -1,3 +1,3 @@
-# Cloud Labs
+# Laboratórios de Cloud
 
-> Work in progress — exercises coming soon.
+> Em construção — exercícios em breve.
