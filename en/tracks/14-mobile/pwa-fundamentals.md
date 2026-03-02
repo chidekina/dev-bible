@@ -598,6 +598,191 @@ Architecture:
 
 ---
 
+## Background Sync
+
+Background sync lets the SW retry failed requests when the user reconnects, even if the app tab is closed.
+
+```typescript
+// In service worker — listen for sync events
+self.addEventListener('sync', (event: SyncEvent) => {
+  if (event.tag === 'sync-pending-posts') {
+    event.waitUntil(syncPendingPosts());
+  }
+});
+
+async function syncPendingPosts(): Promise<void> {
+  const db = await openDB('app-store', 1);
+  const pending = await db.getAll('pending-posts');
+
+  await Promise.all(
+    pending.map(async (post) => {
+      try {
+        await fetch('/api/posts', {
+          method: 'POST',
+          body: JSON.stringify(post),
+          headers: { 'Content-Type': 'application/json' },
+        });
+        await db.delete('pending-posts', post.id);
+      } catch {
+        // Will retry on next sync event
+      }
+    }),
+  );
+}
+
+// In app — register sync when user submits form
+async function submitPostOfflineSafe(post: Post): Promise<void> {
+  const db = await openDB('app-store', 1);
+  await db.put('pending-posts', { ...post, id: crypto.randomUUID() });
+
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.sync.register('sync-pending-posts');
+    // Runs immediately if online, or when next reconnection happens
+  } else {
+    // Fallback: try directly
+    await fetch('/api/posts', { method: 'POST', body: JSON.stringify(post) });
+  }
+}
+```
+
+Background sync is one-shot — it fires once when the device reconnects. If the sync handler throws, the browser retries (up to a browser-defined limit). Use it for: form submissions, chat messages, file uploads.
+
+**Periodic Background Sync** (Chrome only, requires site engagement score):
+
+```typescript
+// Request periodic sync permission
+const status = await navigator.permissions.query({
+  name: 'periodic-background-sync' as PermissionName,
+});
+
+if (status.state === 'granted') {
+  const reg = await navigator.serviceWorker.ready;
+  await (reg as any).periodicSync.register('refresh-news', {
+    minInterval: 24 * 60 * 60 * 1000, // 24 hours minimum
+  });
+}
+
+// In SW
+self.addEventListener('periodicsync', (event: any) => {
+  if (event.tag === 'refresh-news') {
+    event.waitUntil(refreshNewsCache());
+  }
+});
+```
+
+Periodic sync fires even when the user isn't actively using the app, allowing content prefetch. The OS controls actual timing — treat `minInterval` as a hint, not a guarantee.
+
+---
+
+## Share Target API
+
+Make your PWA appear in the OS share sheet — users can share URLs, text, or files directly into your app.
+
+```json
+{
+  "share_target": {
+    "action": "/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [{ "name": "media", "accept": ["image/*", "video/*"] }]
+    }
+  }
+}
+```
+
+```typescript
+// app/share-target/route.ts (Next.js App Router) — receives the shared content
+export async function POST(req: Request) {
+  const form = await req.formData();
+  const title = form.get('title') as string | null;
+  const url = form.get('url') as string | null;
+  const file = form.get('media') as File | null;
+
+  // Store in IndexedDB for the app to read, then redirect
+  // The SW intercepts this POST and caches the payload before redirecting
+  return Response.redirect('/editor?shared=true', 303);
+}
+```
+
+```typescript
+// On the /editor page — read the shared data from IndexedDB
+import { openDB } from 'idb';
+
+export function useSharedContent() {
+  const [sharedData, setSharedData] = useState<SharedData | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('shared') === 'true') {
+      // Read from IDB where SW stored it
+      readSharedDataFromIDB().then(setSharedData);
+    }
+  }, []);
+
+  return sharedData;
+}
+```
+
+**Support matrix:** Chrome (desktop + Android), Edge. Not supported on iOS Safari — the share sheet on iOS is system-controlled and does not support web targets.
+
+**Use cases:** Save article to read-later app, share photo to image editor PWA, share URL to bookmarking app.
+
+---
+
+## Additional Anti-Patterns
+
+**Caching dynamic HTML with cache-first** — HTML pages contain links and meta tags that change. Cache-first means users see stale navigation indefinitely. Use network-first with a short timeout for HTML, falling back to a cached shell.
+
+```typescript
+// Wrong: cache-first for HTML
+workbox.routing.registerRoute(
+  ({ request }) => request.destination === 'document',
+  new workbox.strategies.CacheFirst(), // users see stale pages
+);
+
+// Right: network-first for HTML
+workbox.routing.registerRoute(
+  ({ request }) => request.destination === 'document',
+  new workbox.strategies.NetworkFirst({
+    networkTimeoutSeconds: 3, // fall back to cache after 3s
+    cacheName: 'html-cache',
+    plugins: [new workbox.expiration.ExpirationPlugin({ maxAgeSeconds: 60 * 60 * 24 })],
+  }),
+);
+```
+
+**Not versioning cache names** — old cache entries persist when you deploy a new version. Always include a version or content hash in cache names, and clean up old caches on `activate`.
+
+```typescript
+// Wrong: fixed cache name
+const CACHE_NAME = 'my-app-cache'; // old entries never evicted
+
+// Right: versioned cache name + cleanup
+const CACHE_VERSION = 'v3';
+const CACHE_NAME = `my-app-cache-${CACHE_VERSION}`;
+
+self.addEventListener('activate', (event: ExtendableEvent) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key.startsWith('my-app-cache-') && key !== CACHE_NAME)
+          .map((key) => caches.delete(key)),
+      ),
+    ),
+  );
+});
+```
+
+Workbox handles this automatically when you use `generateSW` or `injectManifest` with a revision hash — one reason to prefer Workbox over hand-rolled service workers.
+
+---
+
 ## Further Reading
 
 - [web.dev — Progressive Web Apps](https://web.dev/progressive-web-apps/)
