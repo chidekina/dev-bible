@@ -532,6 +532,169 @@ feature/*     → development → Dev devices
 
 ---
 
+## Internal Distribution
+
+Before submitting to stores, distribute builds to QA and stakeholders for testing.
+
+**TestFlight (iOS):**
+
+```bash
+# Build and upload to TestFlight in one command
+eas build --platform ios --profile preview
+eas submit --platform ios --profile preview
+# Testers receive an email invite; up to 10,000 external testers
+# Internal group (up to 100 Apple accounts) gets immediate access
+```
+
+**Firebase App Distribution (Android + iOS):**
+
+```bash
+npm install --save-dev @react-native-firebase/app-distribution
+```
+
+```json
+// eas.json — add a submit profile for Firebase App Distribution
+{
+  "submit": {
+    "preview": {
+      "android": {
+        "serviceAccountKeyPath": "./firebase-service-account.json",
+        "groups": ["qa-team", "stakeholders"],
+        "releaseNotes": "Preview build for QA"
+      },
+      "ios": {
+        "appleId": "your@email.com",
+        "ascAppId": "1234567890",
+        "groups": ["ios-testers"]
+      }
+    }
+  }
+}
+```
+
+```bash
+eas build --platform android --profile preview
+eas submit --platform android --profile preview
+# Testers install the Firebase App Tester app and receive a notification
+```
+
+**Direct APK install (Android — fastest for internal devs):**
+
+```bash
+# Build an APK (not AAB) for sideloading
+eas build --platform android --profile preview
+# List recent builds and grab the download URL
+eas build:list --platform android --limit 1
+# Share the download link directly — testers enable "Install unknown apps"
+```
+
+Use TestFlight for iOS milestone testing, Firebase for cross-platform QA, and direct APK for developer devices.
+
+---
+
+## Staged Rollouts on Google Play
+
+Release to a percentage of users, watch metrics, then expand. This limits blast radius if a build has a critical bug.
+
+```bash
+# EAS Submit supports setting initial rollout percentage
+eas submit --platform android --profile production
+# Then in Google Play Console → Production → Manage release → Edit rollout percentage
+```
+
+**Typical rollout ladder:**
+1. 1% — smoke test with real users, watch crash-free rate
+2. 5% — broader signal, check ANR rate
+3. 20% — significant traffic, check p95 latency and ratings
+4. 50% → 100% — if all metrics stable after 24-48h at each step
+
+**Metrics to monitor between steps:**
+- **Crash-free users:** must stay above 99.5% (Play Store threshold for demotion)
+- **ANR rate:** must stay below 0.47% (Play Store threshold)
+- **Rating delta:** watch for sudden drops in 1-star reviews
+- **Firebase Performance:** app start time, network request latency
+
+**Halt rollout immediately if metrics regress:**
+
+```
+Google Play Console → Production → Manage release → Halt rollout
+```
+
+This stops new installations of the current version — existing installs are unaffected. Fix the issue, push a new build, and start the ladder over.
+
+**Apple App Store** does not support percentage rollouts for standard releases. Use feature flags (LaunchDarkly, Statsig, or a simple remote config) to gate new features independently of the release.
+
+---
+
+## OTA Update Rollback
+
+If an EAS Update causes regressions, roll back without a store submission.
+
+```bash
+# See recent updates on the production branch
+eas update:list --branch production --limit 10
+
+# Roll back: republish a previous update group to the same branch
+eas update:republish --group <previous-update-group-id> --branch production
+
+# Alternative: publish a new update from a stable git commit
+git checkout <stable-sha>
+eas update --branch production --message "rollback: revert to stable"
+git checkout -  # return to your working branch
+```
+
+**Detect OTA launches in-app** to monitor adoption and health:
+
+```typescript
+import * as Updates from 'expo-updates';
+import analytics from '@segment/analytics-react-native';
+
+export async function trackLaunchContext(): Promise<void> {
+  if (!Updates.isEmbeddedLaunch) {
+    // App launched from an OTA update (not the store binary)
+    await analytics.track('app_ota_launch', {
+      updateId: Updates.updateId,
+      channel: Updates.channel,
+    });
+  }
+}
+```
+
+**EAS Secrets — store credentials out of the repo:**
+
+```bash
+# Store sensitive files and strings in EAS (encrypted, per-project)
+eas secret:create --scope project --name GOOGLE_SERVICES_JSON \
+  --type file --value ./google-services.json
+
+eas secret:create --scope project --name SENTRY_DSN \
+  --type string --value "https://abc@sentry.io/123"
+
+eas secret:create --scope project --name FIREBASE_APP_ID \
+  --type string --value "1:1234567890:ios:abcdef"
+
+# List all secrets
+eas secret:list
+```
+
+```json
+// eas.json — reference secrets as environment variables in builds
+{
+  "build": {
+    "production": {
+      "env": {
+        "SENTRY_DSN": "$SENTRY_DSN",
+        "FIREBASE_APP_ID": "$FIREBASE_APP_ID"
+      }
+    }
+  }
+}
+```
+
+Secrets are injected at build time by EAS Build workers — they never appear in your git history or build logs. Use `--scope account` for secrets shared across all your projects.
+
+---
+
 ## Further Reading
 
 - [EAS Build docs](https://docs.expo.dev/build/introduction/)
