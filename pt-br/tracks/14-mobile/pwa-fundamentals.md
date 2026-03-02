@@ -598,6 +598,191 @@ Arquitetura:
 
 ---
 
+## Background Sync
+
+O background sync permite que o SW repita requisições que falharam quando o usuário se reconectar, mesmo que a aba do app esteja fechada.
+
+```typescript
+// No service worker — escuta eventos de sync
+self.addEventListener('sync', (event: SyncEvent) => {
+  if (event.tag === 'sync-pending-posts') {
+    event.waitUntil(syncPendingPosts());
+  }
+});
+
+async function syncPendingPosts(): Promise<void> {
+  const db = await openDB('app-store', 1);
+  const pending = await db.getAll('pending-posts');
+
+  await Promise.all(
+    pending.map(async (post) => {
+      try {
+        await fetch('/api/posts', {
+          method: 'POST',
+          body: JSON.stringify(post),
+          headers: { 'Content-Type': 'application/json' },
+        });
+        await db.delete('pending-posts', post.id);
+      } catch {
+        // Vai tentar novamente no próximo evento de sync
+      }
+    }),
+  );
+}
+
+// No app — registra o sync quando o usuário envia o formulário
+async function submitPostOfflineSafe(post: Post): Promise<void> {
+  const db = await openDB('app-store', 1);
+  await db.put('pending-posts', { ...post, id: crypto.randomUUID() });
+
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.sync.register('sync-pending-posts');
+    // Executa imediatamente se online, ou na próxima reconexão
+  } else {
+    // Fallback: tenta diretamente
+    await fetch('/api/posts', { method: 'POST', body: JSON.stringify(post) });
+  }
+}
+```
+
+O background sync é one-shot — dispara uma vez quando o dispositivo se reconecta. Se o handler lançar um erro, o browser tentará novamente (até um limite definido pelo browser). Use-o para: envios de formulário, mensagens de chat, uploads de arquivo.
+
+**Periodic Background Sync** (somente Chrome, requer pontuação de engajamento com o site):
+
+```typescript
+// Solicita permissão de sync periódico
+const status = await navigator.permissions.query({
+  name: 'periodic-background-sync' as PermissionName,
+});
+
+if (status.state === 'granted') {
+  const reg = await navigator.serviceWorker.ready;
+  await (reg as any).periodicSync.register('refresh-news', {
+    minInterval: 24 * 60 * 60 * 1000, // mínimo de 24 horas
+  });
+}
+
+// No SW
+self.addEventListener('periodicsync', (event: any) => {
+  if (event.tag === 'refresh-news') {
+    event.waitUntil(refreshNewsCache());
+  }
+});
+```
+
+O sync periódico dispara mesmo quando o usuário não está usando ativamente o app, permitindo pré-busca de conteúdo. O OS controla o tempo real — trate `minInterval` como uma sugestão, não uma garantia.
+
+---
+
+## Share Target API
+
+Faça sua PWA aparecer na aba de compartilhamento do OS — usuários podem compartilhar URLs, textos ou arquivos diretamente no seu app.
+
+```json
+{
+  "share_target": {
+    "action": "/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [{ "name": "media", "accept": ["image/*", "video/*"] }]
+    }
+  }
+}
+```
+
+```typescript
+// app/share-target/route.ts (Next.js App Router) — recebe o conteúdo compartilhado
+export async function POST(req: Request) {
+  const form = await req.formData();
+  const title = form.get('title') as string | null;
+  const url = form.get('url') as string | null;
+  const file = form.get('media') as File | null;
+
+  // Armazena no IndexedDB para o app ler, depois redireciona
+  // O SW intercepta esse POST e faz cache do payload antes de redirecionar
+  return Response.redirect('/editor?shared=true', 303);
+}
+```
+
+```typescript
+// Na página /editor — lê os dados compartilhados do IndexedDB
+import { openDB } from 'idb';
+
+export function useSharedContent() {
+  const [sharedData, setSharedData] = useState<SharedData | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('shared') === 'true') {
+      // Lê do IDB onde o SW armazenou
+      readSharedDataFromIDB().then(setSharedData);
+    }
+  }, []);
+
+  return sharedData;
+}
+```
+
+**Matriz de suporte:** Chrome (desktop + Android), Edge. Não suportado no iOS Safari — a aba de compartilhamento no iOS é controlada pelo sistema e não aceita destinos web.
+
+**Casos de uso:** Salvar artigo em app de leitura para depois, compartilhar foto em PWA de edição de imagem, compartilhar URL em app de favoritos.
+
+---
+
+## Anti-Padrões Adicionais
+
+**Fazer cache de HTML dinâmico com cache-first** — páginas HTML contêm links e meta tags que mudam. Cache-first significa que os usuários verão navegação desatualizada indefinidamente. Use network-first com um timeout curto para HTML, caindo para um shell em cache.
+
+```typescript
+// Errado: cache-first para HTML
+workbox.routing.registerRoute(
+  ({ request }) => request.destination === 'document',
+  new workbox.strategies.CacheFirst(), // usuários veem páginas desatualizadas
+);
+
+// Certo: network-first para HTML
+workbox.routing.registerRoute(
+  ({ request }) => request.destination === 'document',
+  new workbox.strategies.NetworkFirst({
+    networkTimeoutSeconds: 3, // cai para o cache após 3s
+    cacheName: 'html-cache',
+    plugins: [new workbox.expiration.ExpirationPlugin({ maxAgeSeconds: 60 * 60 * 24 })],
+  }),
+);
+```
+
+**Não versionar nomes de cache** — entradas de cache antigas persistem quando você faz deploy de uma nova versão. Sempre inclua uma versão ou hash de conteúdo nos nomes de cache, e limpe caches antigos no evento `activate`.
+
+```typescript
+// Errado: nome de cache fixo
+const CACHE_NAME = 'my-app-cache'; // entradas antigas nunca são removidas
+
+// Certo: nome de cache versionado + limpeza
+const CACHE_VERSION = 'v3';
+const CACHE_NAME = `my-app-cache-${CACHE_VERSION}`;
+
+self.addEventListener('activate', (event: ExtendableEvent) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key.startsWith('my-app-cache-') && key !== CACHE_NAME)
+          .map((key) => caches.delete(key)),
+      ),
+    ),
+  );
+});
+```
+
+O Workbox lida com isso automaticamente quando você usa `generateSW` ou `injectManifest` com um hash de revisão — uma razão para preferir Workbox a service workers feitos à mão.
+
+---
+
 ## Leitura Adicional
 
 - [web.dev — Progressive Web Apps](https://web.dev/progressive-web-apps/)
