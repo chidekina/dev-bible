@@ -511,6 +511,197 @@ function InfiniteList() {
 
 ---
 
+## Reanimated 3 — Shared Values e Worklets
+
+O Reanimated 3 move as animações inteiramente para a thread de UI via worklets — funções que rodam em um runtime JavaScript separado, contornando a bridge e eliminando quedas de frames.
+
+```bash
+npx expo install react-native-reanimated
+# Add to babel.config.js plugins: 'react-native-reanimated/plugin'
+```
+
+```typescript
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolate,
+  Extrapolation,
+  runOnJS,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+
+// Shared value — vive na thread de UI, legível/gravável da thread JS
+function ExpandableCard() {
+  const height = useSharedValue(80);
+  const opacity = useSharedValue(0.6);
+
+  // useAnimatedStyle roda como worklet na thread de UI — nunca causa jank na thread JS
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: withSpring(height.value, { damping: 15, stiffness: 100 }),
+    opacity: withTiming(opacity.value, { duration: 250 }),
+  }));
+
+  const tap = Gesture.Tap().onEnd(() => {
+    // Roda na thread de UI — sem round trip pela bridge
+    height.value = height.value === 80 ? 240 : 80;
+    opacity.value = opacity.value === 0.6 ? 1 : 0.6;
+  });
+
+  return (
+    <GestureDetector gesture={tap}>
+      <Animated.View style={[styles.card, animatedStyle]} />
+    </GestureDetector>
+  );
+}
+```
+
+**Valores derivados** — computados a partir de shared values, também na thread de UI:
+
+```typescript
+import { useDerivedValue } from 'react-native-reanimated';
+
+const scale = useSharedValue(1);
+
+// Recomputa automaticamente quando scale muda — sem useEffect, sem setState
+const shadowOpacity = useDerivedValue(() =>
+  interpolate(scale.value, [1, 1.3], [0.1, 0.5], Extrapolation.CLAMP),
+);
+```
+
+**Funções worklet personalizadas** — anote com `'worklet'` para rodar na thread de UI:
+
+```typescript
+function easeInOutCubic(t: number): number {
+  'worklet';
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// Ponte de volta para a thread JS quando necessário (para setState, navegação, etc.)
+const onAnimationEnd = () => setExpanded(true); // função JS
+runOnJS(onAnimationEnd)(); // chama da thread de UI worklet
+```
+
+Regra de ouro: mantenha toda a lógica de animação em worklets, use `runOnJS` apenas para efeitos colaterais que precisam tocar o state React ou a navegação.
+
+---
+
+## Nova Arquitetura — JSI, Fabric, TurboModules
+
+A Nova Arquitetura do React Native (estável desde o RN 0.74, padrão no RN 0.76) substitui a Bridge assíncrona pelo JSI (JavaScript Interface), habilitando chamadas nativas síncronas.
+
+**Arquitetura Antiga (Bridge):**
+```
+Thread JS → serializa JSON → Bridge async → desserializa → Thread Nativa
+           (uma fila de mensagens, inerentemente assíncrona, muito cópia)
+```
+
+**Nova Arquitetura (JSI):**
+```
+Thread JS ←→ JSI (memória compartilhada C++) ←→ Thread Nativa
+           (síncrona, referências de objeto diretas, sem serialização)
+```
+
+**Fabric** — o novo renderer de UI:
+- Layout síncrono (habilita `startTransition` do React 18, recursos concorrentes)
+- Overhead de re-render reduzido para árvores complexas
+- Shadow tree vive em C++ — compartilhada entre JS e nativo sem cópias
+
+**TurboModules** — módulos nativos carregados sob demanda:
+
+```typescript
+// Antigo: TODOS os módulos nativos inicializados na startup (TTI lento)
+const { CameraModule } = NativeModules; // sempre carregado
+
+// Novo: inicialização lazy — carregado no primeiro acesso
+// A spec do módulo é gerada via codegen a partir de uma interface TypeScript:
+// NativeCameraModuleSpec.ts → código de bridge C++ gerado
+import NativeCamera from './specs/NativeCamera'; // carregado apenas quando chamado
+```
+
+**Ativar no Expo (SDK 51+):**
+
+```json
+// app.json
+{
+  "expo": {
+    "newArchEnabled": true
+  }
+}
+```
+
+Verifique a compatibilidade das bibliotecas antes de ativar: [reactnative.directory/?newArchitecture=true](https://reactnative.directory/?newArchitecture=true). A maioria das bibliotecas principais (Reanimated 3, RNGH 2, React Navigation 6+) é compatível com a New Arch.
+
+---
+
+## React Native Skia
+
+`@shopify/react-native-skia` traz o motor gráfico 2D Skia para o React Native para desenho personalizado — o mesmo motor usado pelo Flutter, Chrome e Android. Use-o para gráficos, visualização de dados, efeitos de imagem, animações personalizadas e jogos.
+
+```bash
+npx expo install @shopify/react-native-skia
+```
+
+```tsx
+import {
+  Canvas,
+  Circle,
+  LinearGradient,
+  vec,
+  useValue,
+  useComputedValue,
+  runTiming,
+  Easing,
+  interpolate,
+} from '@shopify/react-native-skia';
+
+// Desenho estático
+function GradientOrb() {
+  return (
+    <Canvas style={{ width: 200, height: 200 }}>
+      <Circle cx={100} cy={100} r={80}>
+        <LinearGradient
+          start={vec(20, 20)}
+          end={vec(180, 180)}
+          colors={['#6366f1', '#8b5cf6', '#ec4899']}
+        />
+      </Circle>
+    </Canvas>
+  );
+}
+
+// Animado com os próprios valores de animação do Skia (roda na thread de UI)
+function PulsingDot() {
+  const r = useValue(20);
+  // Anima: 20 → 40 → 20 em 1200ms, repete
+  runTiming(r, 40, { duration: 600, easing: Easing.inOut(Easing.ease) });
+
+  const opacity = useComputedValue(
+    () => interpolate(r.current, [20, 40], [1, 0.3]),
+    [r],
+  );
+
+  return (
+    <Canvas style={{ width: 80, height: 80 }}>
+      <Circle cx={40} cy={40} r={r} opacity={opacity} color="#6366f1" />
+    </Canvas>
+  );
+}
+```
+
+**Quando usar Skia vs Reanimated:**
+
+| Caso de uso | Ferramenta |
+|---|---|
+| Animações de UI padrão (opacity, scale, translate) | Reanimated |
+| Formas personalizadas, gradientes, caminhos de desenho | Skia |
+| Gráficos com milhares de pontos de dados | Skia |
+| Filtros de imagem, blur, manipulação de cor | Skia |
+| Animações de gesto baseadas em física | Reanimated + Gesture Handler |
+
+---
+
 ## Leitura Adicional
 
 - [Documentação do Reanimated](https://docs.swmansion.com/react-native-reanimated/)
@@ -523,4 +714,4 @@ function InfiniteList() {
 
 ## Resumo
 
-Performance no React Native significa manter a thread JS e a thread de UI a 60fps. Faça profiling antes de otimizar. Memorize `renderItem`, `keyExtractor` e componentes de itens de lista. Use Reanimated 2+ para todas as animações — ele roda na thread de UI e contorna a bridge. Gesture Handler oferece reconhecedores de gesto que também rodam nativamente. Evite conduzir animações com `setState`. Deep linking requer um URL scheme no `app.json` e uma configuração de `linking` no `NavigationContainer`. Módulos nativos podem ser escritos com a Expo Modules API para bridges TypeScript-first limpas.
+Performance no React Native significa manter a thread JS e a thread de UI a 60fps. Faça profiling antes de otimizar. Memorize `renderItem`, `keyExtractor` e componentes de itens de lista. Use Reanimated 2+ para todas as animações — ele roda na thread de UI e contorna a bridge. O Reanimated 3 vai além com worklets e valores derivados que nunca tocam a thread JS. A Nova Arquitetura (JSI + Fabric + TurboModules) elimina a bridge por completo para chamadas nativas síncronas — ative com `newArchEnabled: true` no Expo SDK 51+. Gesture Handler oferece reconhecedores de gesto que também rodam nativamente. Para desenho personalizado, gráficos e efeitos de imagem, use React Native Skia. Evite conduzir animações com `setState`. Deep linking requer um URL scheme no `app.json` e uma configuração de `linking` no `NavigationContainer`. Módulos nativos podem ser escritos com a Expo Modules API para bridges TypeScript-first limpas.
