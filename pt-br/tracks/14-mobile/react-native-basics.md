@@ -485,6 +485,204 @@ function RootNavigator() {
 
 ---
 
+## Motor Hermes
+
+Hermes é um motor JavaScript otimizado para React Native, habilitado por padrão desde o Expo SDK 48. Ele pré-compila JavaScript para bytecode em tempo de build, melhorando o tempo de inicialização e reduzindo o uso de memória em comparação com o JavaScriptCore.
+
+Benefícios:
+- TTI (time-to-interactive) mais rápido — o JS é pré-compilado, sem aquecimento JIT
+- Menor consumo de memória — GC ajustado para as restrições do mobile
+- Detecção antecipada de erros — erros de sintaxe aparecem no build, não em runtime
+
+```typescript
+// Verifica se o Hermes está rodando em runtime
+const isHermes = () => !!global.HermesInternal;
+
+if (__DEV__) {
+  console.log('Running on Hermes:', isHermes());
+  console.log('Runtime properties:', global.HermesInternal?.getRuntimeProperties());
+}
+```
+
+```json
+// app.json — Hermes está habilitado por padrão no Expo SDK 48+
+{
+  "expo": {
+    "jsEngine": "hermes"
+  }
+}
+```
+
+Para reverter para o JavaScriptCore (para depurar casos extremos ou bibliotecas incompatíveis), defina `"jsEngine": "jsc"`. Sempre teste com Hermes antes de publicar — um pequeno número de bibliotecas mais antigas tem incompatibilidades com o Hermes.
+
+---
+
+## Configuração do Metro Bundler
+
+Metro é o bundler JavaScript do React Native. A configuração padrão funciona para a maioria dos apps, mas você precisará personalizá-la para monorepos, suporte a SVG ou aliases de caminho.
+
+```javascript
+// metro.config.js
+const { getDefaultConfig } = require('expo/metro-config');
+const path = require('path');
+
+const config = getDefaultConfig(__dirname);
+
+// 1. Suporte a SVG — transforma SVGs como componentes React
+config.transformer.babelTransformerPath = require.resolve('react-native-svg-transformer');
+config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');
+config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg'];
+
+// 2. Aliases de caminho — importe de '@components/Button' em vez de '../../components/Button'
+config.resolver.alias = {
+  '@components': path.resolve(__dirname, 'src/components'),
+  '@hooks': path.resolve(__dirname, 'src/hooks'),
+  '@lib': path.resolve(__dirname, 'src/lib'),
+  '@types': path.resolve(__dirname, 'src/types'),
+};
+
+// 3. Monorepo — observa pacotes fora do diretório do app
+config.watchFolders = [path.resolve(__dirname, '../../packages')];
+
+module.exports = config;
+```
+
+Atualize também o `tsconfig.json` para que o TypeScript resolva os aliases:
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@components/*": ["src/components/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@lib/*": ["src/lib/*"],
+      "@types/*": ["src/types/*"]
+    }
+  }
+}
+```
+
+---
+
+## Extensões de Arquivo Específicas por Plataforma
+
+O Metro resolve `.ios.ts` e `.android.ts` antes de `.ts`, permitindo implementações limpas por plataforma sem `Platform.OS` espalhado pelo código.
+
+```
+src/components/
+  DatePicker.tsx          # fallback (web / plataformas desconhecidas)
+  DatePicker.ios.tsx      # usado automaticamente no iOS
+  DatePicker.android.tsx  # usado automaticamente no Android
+```
+
+```tsx
+// DatePicker.ios.tsx — seletor de data nativo do iOS
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+interface Props {
+  value: Date;
+  onChange: (date: Date) => void;
+}
+
+export function DatePicker({ value, onChange }: Props) {
+  return (
+    <DateTimePicker
+      value={value}
+      mode="date"
+      display="spinner"
+      onChange={(_, selectedDate) => selectedDate && onChange(selectedDate)}
+    />
+  );
+}
+```
+
+```tsx
+// DatePicker.android.tsx — Android usa um dialog (API imperativa)
+import { Pressable, Text } from 'react-native';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+
+interface Props {
+  value: Date;
+  onChange: (date: Date) => void;
+}
+
+export function DatePicker({ value, onChange }: Props) {
+  const openPicker = () =>
+    DateTimePickerAndroid.open({
+      value,
+      mode: 'date',
+      onChange: (_, selectedDate) => selectedDate && onChange(selectedDate),
+    });
+
+  return (
+    <Pressable onPress={openPicker}>
+      <Text>{value.toLocaleDateString()}</Text>
+    </Pressable>
+  );
+}
+```
+
+O código consumidor importa `DatePicker` pelo caminho compartilhado — o Metro escolhe a implementação correta automaticamente. Sem `if (Platform.OS === 'android')` necessário.
+
+O padrão funciona para qualquer componente que diverge por plataforma: interfaces de câmera, sheets de compartilhamento, diálogos de permissão, seletores nativos.
+
+---
+
+## Depuração
+
+**React Native DevTools** (recomendado, Expo SDK 50+):
+
+```bash
+npx expo start
+# Pressione 'j' no terminal para abrir o depurador
+# Abre o Chrome DevTools conectado ao runtime JS do seu app
+```
+
+Funcionalidades: breakpoints, execução passo a passo, inspetor de rede (fetch/XHR), árvore de componentes React, profiler de performance, source maps.
+
+**Gesto de chacoalhar / menu de dev:**
+- Simulador iOS: Cmd+D
+- Simulador Android: Cmd+M (macOS) ou Ctrl+M (Windows/Linux)
+- Dispositivo físico: chacoalhar
+
+**Flipper** (legado — evite em projetos novos):
+- Requer build nativo e dependências nativas pesadas
+- Quebra frequentemente nas atualizações do RN
+- O React Native DevTools o substitui em quase todos os casos de uso
+- Remova de projetos existentes: `npx react-native-clean-project`
+
+**LogBox** — personalizando o overlay de erros:
+
+```typescript
+import { LogBox } from 'react-native';
+
+// Suprime avisos específicos — use com moderação, prefira corrigir a causa raiz
+LogBox.ignoreLogs([
+  'Require cycle:',            // Comum em codebases grandes, geralmente inofensivo
+  'Non-serializable values',   // Correção: não passe funções pelos params de navegação
+  'VirtualizedLists should',   // Correção: não aninhe FlatList dentro de ScrollView
+]);
+
+// Desativa completamente durante testes E2E com Detox / Maestro
+if (process.env.E2E === 'true') {
+  LogBox.ignoreAllLogs();
+}
+```
+
+**Console.log em produção:** Remova com Babel:
+
+```javascript
+// babel.config.js
+module.exports = {
+  plugins: process.env.NODE_ENV === 'production'
+    ? [['transform-remove-console', { exclude: ['error', 'warn'] }]]
+    : [],
+};
+```
+
+---
+
 ## Leitura Adicional
 
 - [Documentação do React Native](https://reactnative.dev/docs/getting-started)
