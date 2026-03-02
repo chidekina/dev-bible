@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.1.0] - 2026-03-02
+
+### Added
+
+#### Reference Cheatsheets — 4 new (EN + PT-BR)
+- Kubernetes cheatsheet (kubectl, Helm, RBAC, troubleshooting)
+- Terraform cheatsheet (workflow, state, loops, modules, backends)
+- Helm cheatsheet (repos, install/upgrade, chart dev, hooks, helmfile)
+- AI/LLM cheatsheet (model comparison, SDK quick-ref, RAG, prompt patterns, cost)
+
+#### Exercises — 7 new files (EN + PT-BR)
+- Security challenges (12 exercises: bcrypt, JWT, CSRF, rate limiting, RBAC, etc.)
+- System Design challenges (10 katas: rate limiter, fanout, circuit breaker, etc.)
+- Testing challenges (12 exercises: unit, integration, E2E, TDD, MSW, k6, Pact)
+- Performance challenges (10 exercises: profiling, N+1, caching, Core Web Vitals)
+- Accessibility challenges (10 exercises: axe-core, ARIA, focus trap, jest-axe)
+- Kubernetes challenges (10 exercises: manifests, probes, HPA, RBAC, Helm)
+- AI/LLM challenges (10 exercises: RAG, tool use, streaming, model routing)
+
+### Changed
+- README badges updated: 115 topics, 280 files, 12 cheatsheets, 13 exercise files
+- Reference section expanded with links to all 12 cheatsheets
+- Exercises section expanded with links to all 13 exercise files
+
+---
+
 ## [2.0.0] - 2026-03-02
 
 ### Added
